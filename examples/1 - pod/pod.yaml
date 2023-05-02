@@ -2,9 +2,11 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: my-flask-pod
+  labels:
+    app: my-flask-app
 spec:
   containers:
   - name: my-flask-app
-    image: my-flask-app:latest
+    image: acrpinpateste.azurecr.io/hello-world:latest
     ports:
     - containerPort: 80

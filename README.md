@@ -34,6 +34,7 @@ Pré-requisitos
 4. Um editor de texto, como o Visual Studio Code, instalado em sua máquina
 5. O kubectl, a ferramenta de linha de comando do Kubernetes, instalado em sua máquina. Você pode instalar o kubectl seguindo as instruções em https://kubernetes.io/docs/tasks/tools/install-kubectl/
 6. O Helm, o gerenciador de pacotes do Kubernetes, instalado em sua máquina. Você pode instalar o Helm seguindo as instruções em https://helm.sh/docs/intro/install/
+7. Instale o git para poder clonar os exercicios e exemplos.
 
 Certifique-se de ter todas essas ferramentas instaladas e configuradas corretamente antes de começar o hands-on.
 ___
@@ -136,3 +137,161 @@ Em Kubernetes, um pod é a menor unidade de implantação que pode ser criada e 
 
 Os pods são geralmente usados para agrupar e gerenciar contêineres que trabalham juntos para oferecer um serviço. Por exemplo, um pod pode conter um contêiner com um aplicativo web e outro contêiner com um banco de dados usado pelo aplicativo. Esses contêineres compartilham o mesmo espaço de rede e armazenamento dentro do pod, permitindo que eles se comuniquem facilmente.
 
+___
+Criando Primeiro Pod
+<br>
+---
+Para criar o primeiro pod precisamos gerar uma imagem de docker e enviar para o registry que criamos com o nome <b>acrPinpaXxx</b>
+
+Exemplo 1 - Criando primeiro pod
+
+1. Cria a imagem docker baseado no DockerFile.
+```bash
+docker build -t <Url do registry>/hello-world:latest .
+```
+2. Enviar imagem para o Registry
+````bash
+docker push <Url do registry>/hello-world:latest
+````
+3. Aplicar o yaml no cluster
+````bash
+Kubectl apply -f pod.yaml
+````
+4. Para validar se o pod funcionou execute o comando, a saida deve ser uma aparecida com a abaixo:
+````bash
+$ kubectl get pods
+NAME           READY   STATUS         RESTARTS   AGE
+my-flask-pod   1/1     Running        0          104s
+````
+
+___
+Service
+-----------------------
+-----------------------
+Um serviço é um objeto Kubernetes que define uma política de acesso para um conjunto de pods. Ele permite que os pods sejam acessados de forma consistente, independentemente de sua localização ou escala.
+
+<b>Diferença de NodePort, ClusterIP e Load Balance:</b>
+
+NodePort expõe o serviço em um número de porta estática em cada nó do cluster. ClusterIP cria um IP interno para o serviço para que possa ser acessado internamente no cluster. LoadBalancer cria um IP externo que permite que o serviço seja acessado de fora do cluster.
+
+Exemplo 1 - Criando primeiro pod
+
+1. Aplicar o yaml no cluster
+````bash
+Kubectl apply -f service.yaml
+````
+2. Para validar se o service funcionou execute o comando, a saida deve ser uma aparecida com a abaixo:
+````bash
+$ kubectl get svc
+NAME               TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)        AGE
+kubernetes         ClusterIP      10.0.0.1      <none>          443/TCP        11h
+my-flask-service   LoadBalancer   10.0.110.69   20.75.178.130   80:30589/TCP   2m50s
+````
+
+Se voce tentar rodar o IP que apareceu em seu terminal no navegador será apresentado um hello world na sua tela informando que funcionou perfeitamente bem.
+
+<br/><img src="images/eks-pods.png" width="512">
+
+___
+Deployment
+-----------------------
+-----------------------
+
+um Deployment é um objeto que gerencia a implantação de um conjunto de Pods e assegura que eles estejam rodando de forma saudável. Um Deployment permite atualizações e rollbacks da aplicação sem tempo de inatividade, e também pode ser escalado automaticamente com base na carga de trabalho.
+
+Quando você cria um Deployment, você define o número de réplicas que deseja executar e as especificações do Pod, como imagem, portas e variáveis de ambiente. O Kubernetes então cria o número definido de réplicas do Pod. Se uma das réplicas falhar, o Deployment automaticamente cria uma nova replica para substituí-la.
+
+Para atualizar a aplicação, você pode simplesmente atualizar a imagem do contêiner no Deployment e o Kubernetes cuida de atualizar as réplicas com a nova imagem, de forma rolling update, garantindo que haja sempre um número mínimo de réplicas rodando para que não haja interrupção no serviço.
+
+Exemplo 2 - Deployment
+
+1. Aplicar o yaml no cluster
+````bash
+$ kubectl apply -f deploy.yaml
+$ Kubectl apply -f service.yaml
+````
+2. Para validar se o service/deploy funcionou execute o comando, a saida deve ser uma aparecida com a abaixo:
+````bash
+$ kubectl get deploy
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+my-flask-app-deploy   2/2     2            2           40s
+````
+Veja que foi criado dois pods e eles subiram normalmente.
+se rodar o get pods veremos que existirá dois pods com o mesmo nome.
+`````bash
+$ kubectl get pods
+NAME                                   READY   STATUS    RESTARTS   AGE
+my-flask-app-deploy-5f4494677b-l74wr   1/1     Running   0          2m15s
+my-flask-app-deploy-5f4494677b-m5lqw   1/1     Running   0          2m15s
+my-flask-pod                           1/1     Running   0          30m
+
+$ kubectl get svc
+NAME                      TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)        AGE
+kubernetes                ClusterIP      10.0.0.1      <none>          443/TCP        13h
+my-flask-service          LoadBalancer   10.0.110.69   20.75.178.130   80:30589/TCP   78m
+my-flask-service-deploy   LoadBalancer   10.0.33.138   20.246.184.46   80:32014/TCP   2m38s
+`````
+___
+DaemonSet
+-----------------------
+-----------------------
+
+Um DaemonSet é um objeto do Kubernetes que garante que um conjunto de Pods seja executado em todos os nodes de um cluster. Cada node executará exatamente uma instância do Pod gerenciado pelo DaemonSet.
+
+Isso é útil para tarefas que precisam ser executadas em todos os nodes, como coletar logs, coletar métricas ou configurar os nodes. Outra vantagem é que quando um novo node é adicionado ao cluster, o DaemonSet automaticamente cria uma nova instância do Pod para esse node.
+
+Exemplo 3 - Criando daemon set
+
+1. Aplicar o yaml no cluster
+````bash
+$ kubectl apply -f daemonset.yaml
+````
+2. Para validar se o daemonset funcionou execute o comando, a saida deve ser uma aparecida com a abaixo:
+````bash
+$ kubectl get pods
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+my-flask-app-deploy   2/2     2            2           40s
+$ kubectl get daemonset
+NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+my-daemonset   2         2         2       2            2           <none>          13s
+$ kubectl get pods
+NAME                                   READY   STATUS    RESTARTS   AGE
+my-daemonset-fbcdn                     1/1     Running   0          3m29s
+my-daemonset-qjqm2                     1/1     Running   0          3m29s
+my-flask-app-deploy-5f4494677b-l74wr   1/1     Running   0          16m
+my-flask-app-deploy-5f4494677b-m5lqw   1/1     Running   0          16m
+my-flask-pod                           1/1     Running   0          45m
+$ kubectl get nodes
+NAME                                STATUS   ROLES   AGE   VERSION
+aks-agentpool-15786537-vmss000000   Ready    agent   13h   v1.25.6
+aks-agentpool-15786537-vmss000001   Ready    agent   13h   v1.25.6
+````
+___
+StateFulSet
+-----------------------
+-----------------------
+Um StatefulSet é um objeto do Kubernetes usado para gerenciar um conjunto de Pods que precisam ser executados em ordem específica e possuem um identificador único.
+
+Os Pods gerenciados por um StatefulSet têm nomes diferentes e são persistentes, o que significa que eles retêm seus nomes e identidades únicas mesmo quando são removidos ou reiniciados. Isso é importante para aplicativos que precisam armazenar dados persistentes em disco ou para aplicativos que precisam de identificadores únicos, como bancos de dados, caches e outros sistemas de armazenamento de dados.
+
+Exemplo 4 - Criando StatefulSet
+
+1. Aplicar o yaml no cluster
+````bash
+$ kubectl apply -f deploy.yaml
+$ Kubectl apply -f service.yaml
+````
+2. Para validar se o service/deploy funcionou execute o comando, a saida deve ser uma aparecida com a abaixo:
+````bash
+$ kubectl get deploy
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+my-flask-app-deploy   2/2     2            2           40s
+````
+Veja que foi criado dois pods e eles subiram normalmente.
+se rodar o get pods veremos que existirá dois pods com o mesmo nome.
+`````bash
+$ kubectl get pods
+NAME                                   READY   STATUS    RESTARTS   AGE
+my-flask-app-deploy-5f4494677b-l74wr   1/1     Running   0          2m15s
+my-flask-app-deploy-5f4494677b-m5lqw   1/1     Running   0          2m15s
+my-flask-pod        
